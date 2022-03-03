@@ -1,0 +1,10 @@
+terraform.tfvars
+
+# ./infra/terraform.tfvars
+
+**.terraform*
+*.tfstate
+.env
+
+# *.tfvars
+# !*.auto.tfvars
