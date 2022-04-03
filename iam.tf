@@ -45,11 +45,15 @@ resource "aws_iam_role_policy" "codebuild_policy" {
         Resource = ["*"]
       },
       {
-            "Effect": "Allow",
-            "Action": ["iam:*","iam:CreateRole"],
-            "Resource": ["*"]
-        }
-
+        "Effect" : "Allow",
+        "Action" : ["iam:*", "iam:CreateRole"],
+        "Resource" : ["*"]
+      },
+      {
+        "Effect" : "Allow",
+        "Action" : ["ecs:*"],
+        "Resource" : ["*"]
+      }
     ]
   })
 }
@@ -194,14 +198,14 @@ resource "aws_iam_role_policy" "codepipeline_policy" {
         "Resource" : "*",
         "Effect" : "Allow"
       },
-       {
-            "Effect": "Allow",
-            "Action": [
-              "iam:*",
-              "iam:CreateRole",
-            ],
-            "Resource": ["*"]
-        },
+      {
+        "Effect" : "Allow",
+        "Action" : [
+          "iam:*",
+          "iam:CreateRole",
+        ],
+        "Resource" : ["*"]
+      },
       {
         "Effect" : "Allow",
         "Action" : [
@@ -279,8 +283,259 @@ resource "aws_iam_role_policy" "codepipeline_policy" {
         "Resource" : [
           "*"
         ]
-      }
+      },
+      {
+        "Effect" : "Allow",
+        "Action" : [
+          "logs:*",
+          "logs:CreateLogGroup",
+          "logs:CreateLogStream",
+          "logs:PutLogEvents",
+          "logs:DescribeLogStreams",
+          "logs:DescribeLogGroups",
+          "logs:GetLogEvents"
+
+        ],
+        "Resource" : "*"
+      },
+      {
+        "Effect" : "Allow",
+        "Action" : [
+          "s3:GetObject",
+          "s3:GetObjectVersion",
+          "s3:GetBucketVersioning",
+          "s3:PutObject"
+        ],
+        "Resource" : [
+          "${aws_s3_bucket.codepipeline_bucket.arn}",
+          "${aws_s3_bucket.codepipeline_bucket.arn}/*"
+        ]
+      },
     ],
     "Version" : "2012-10-17"
   })
 }
+
+
+# iam for ecs
+
+
+resource "aws_iam_role" "ecs_task_service_role" {
+  name = "ecs_task_service_role"
+  assume_role_policy = jsonencode({
+    "Version" = "2012-10-17"
+    "Statement" = [
+      {
+        "Effect" = "Allow"
+        "Principal" = {
+          "Service" = "ecs-tasks.amazonaws.com"
+        }
+        "Action" = "sts:AssumeRole"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role" "ecs_task_excecution_role" {
+  name = "ecs_task_excecution_role"
+
+  assume_role_policy = jsonencode({
+    "Version" = "2008-10-17"
+    "Statement" = [
+      {
+        "Effect" = "Allow"
+        "Principal" = {
+          "Service" = ["ecs-tasks.amazonaws.com"]
+        }
+        "Action" = "sts:AssumeRole"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role" "codedeploy_service_role" {
+  name = "codedeploy_service_role"
+
+  assume_role_policy = jsonencode({
+    "Version" = "2012-10-17"
+    "Statement" = [
+      {
+        "Effect" = "Allow"
+        "Principal" = {
+          "Service" = "codedeploy.amazonaws.com"
+        }
+        "Action" = "sts:AssumeRole"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "codedeploy-attachment" {
+  policy_arn = "arn:aws:iam::aws:policy/AWSCodeDeployRoleForECS"
+  role       = aws_iam_role.codedeploy_service_role.name
+}
+
+resource "aws_iam_policy" "policy_for_ecs_task_service_role" {
+  description = "IAM Policy for ECS Task Service}"
+  policy      = data.aws_iam_policy_document.role_policy_ecs_task_role.json
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+resource "aws_iam_role_policy_attachment" "attachment" {
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
+  role       = aws_iam_role.ecs_task_excecution_role.name
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+data "aws_iam_policy_document" "role_policy_ecs_task_role" {
+  statement {
+    sid    = "AllowS3Actions"
+    effect = "Allow"
+    actions = [
+      "s3:GetObject",
+      "s3:ListBucket"
+    ]
+    resources = [
+      "${aws_s3_bucket.codepipeline_bucket.arn}",
+      "${aws_s3_bucket.codepipeline_bucket.arn}/*"
+    ]
+  }
+  statement {
+    sid    = "AllowIAMPassRole"
+    effect = "Allow"
+    actions = [
+      "iam:PassRole"
+    ]
+    resources = ["*"]
+  }
+  statement {
+    sid    = "AllowECRActions"
+    effect = "Allow"
+    actions = [
+      "ecr:BatchCheckLayerAvailability",
+      "ecr:CompleteLayerUpload",
+      "ecr:BatchGetImage",
+      "ecr:GetDownloadUrlForLayer",
+      "ecr:InitiateLayerUpload",
+      "ecr:PutImage",
+      "ecr:UploadLayerPart"
+    ]
+    resources = [aws_ecr_repository.net.arn]
+  }
+  statement {
+    sid    = "AllowECRAuthorization"
+    effect = "Allow"
+    actions = [
+      "ecr:GetAuthorizationToken",
+    ]
+    resources = ["*"]
+
+  }
+}
+
+
+
+
+
+
+
+# iam for elasticbeanstalk
+
+# resource "aws_iam_role" "elasticbeanstalk_service" {
+#   name = "aws-elasticbeanstalk-service-role"
+#   assume_role_policy = jsonencode({
+#     "Version" : "2012-10-17",
+#     "Statement" : [
+#       {
+#         "Effect" : "Allow",
+#         "Principal" : {
+#           "Service" : "elasticbeanstalk.amazonaws.com"
+#         },
+#         "Action" : "sts:AssumeRole"
+#       }
+#     ]
+#   })
+# }
+
+
+# resource "aws_iam_role_policy" "elasticbeanstalk_policy" {
+#   name = "authirrrrrrrr-elasticbeanstalk-service-role-policy"
+#   role = aws_iam_role.elasticbeanstalk_service.id
+#   policy = jsonencode({
+#     "Version" : "2012-10-17",
+#     "Statement" : [
+#       {
+#         "Effect" : "Allow",
+#         "Action" : [
+#           "elasticbeanstalk:*"
+#         ],
+#         "Resource" : "*"
+#       },
+
+#       {
+#         "Effect" : "Allow",
+#         "Action" : [
+#           "ec2:*",
+#           "elasticloadbalancing:*",
+#           "autoscaling:*",
+#           "cloudwatch:*",
+#           "s3:*",
+#           "sns:*",
+#           "cloudformation:*",
+#           "rds:*",
+#           "sqs:*",
+#           "ecs:*",
+#         ],
+#         "Resource" : "*"
+#       },
+#       {
+#         "Effect" : "Allow",
+#         "Action" : [
+#           "lambda:InvokeFunction",
+#           "lambda:ListFunctions"
+#         ],
+#         "Resource" : "*"
+#       },
+
+#       {
+#         "Effect" : "Allow",
+#         "Action" : [
+#           "codebuild:BatchGetBuilds",
+#           "codebuild:StartBuild",
+#           "codebuild:BatchGetBuildBatches",
+#           "codebuild:StartBuildBatch"
+#         ],
+#         "Resource" : "*"
+#       },
+
+#       # codedeploy
+#       {
+#         "Effect" : "Allow",
+#         "Action" : [
+#           "codedeploy:*"
+#         ],
+#         "Resource" : "*"
+#       },
+
+#       {
+#         "Effect" : "Allow",
+#         "Action" : [
+#           "logs:CreateLogGroup",
+#           "logs:CreateLogStream",
+#           "logs:PutLogEvents",
+#           "logs:DescribeLogStreams",
+#           "logs:DescribeLogGroups",
+#           "logs:GetLogEvents"
+#         ],
+#         "Resource" : "*"
+#       }
+#     ]
+#   })
+# }
+

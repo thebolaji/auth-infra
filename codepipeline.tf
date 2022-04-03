@@ -44,4 +44,47 @@ resource "aws_codepipeline" "codepipeline" {
       }
     }
   }
+
+ stage {
+    name = "Deploy"
+
+    action {
+      name            = "Deploy"
+      category        = "Deploy"
+      owner           = "AWS"
+      provider        = "CodeDeployToECS"
+      version         = "1"
+      run_order       = 1
+      input_artifacts = ["build_output"]
+
+      configuration = {
+        ApplicationName                = local.name
+        DeploymentGroupName            = aws_codedeploy_deployment_group.group.deployment_group_name
+        AppSpecTemplateArtifact        = "build_output"
+        AppSpecTemplatePath            = "appspec.yaml"
+        TaskDefinitionTemplateArtifact = "build_output"
+        TaskDefinitionTemplatePath     = "taskdef.json"
+      }
+    }
+  }
+
+# deploy to elasticbeanstalk
+  # stage {
+  #   name = "Deploy"
+
+  #   action {
+  #     name             = "Deploy"
+  #     category         = "Deploy"
+  #     owner            = "AWS"
+  #     provider         = "ElasticBeanstalk"
+  #     version          = "1"
+  #     input_artifacts  = ["build_output"]
+      
+  #     configuration = {
+  #       ApplicationName = aws_elastic_beanstalk_application.auther-elastic-beanstalk-app.name
+  #       EnvironmentName = aws_elastic_beanstalk_environment.auther-elastic-beanstalk-env.name
+  #     }
+  #   }
+  # }
+
 }
