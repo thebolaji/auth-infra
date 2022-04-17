@@ -20,7 +20,7 @@ resource "aws_codepipeline" "codepipeline" {
 
       configuration = {
         ConnectionArn    = var.authr_codestar_connection
-        FullRepositoryId = "BigB97/auth-athur"
+        FullRepositoryId = "BigB97/FixBot"
         BranchName       = "master"
         # OutputFilePath   = "CODE_PIPELINE_FILE"
       }
@@ -45,7 +45,7 @@ resource "aws_codepipeline" "codepipeline" {
     }
   }
 
- stage {
+  stage {
     name = "Deploy"
 
     action {
@@ -68,7 +68,7 @@ resource "aws_codepipeline" "codepipeline" {
     }
   }
 
-# deploy to elasticbeanstalk
+  # deploy to elasticbeanstalk
   # stage {
   #   name = "Deploy"
 
@@ -79,7 +79,7 @@ resource "aws_codepipeline" "codepipeline" {
   #     provider         = "ElasticBeanstalk"
   #     version          = "1"
   #     input_artifacts  = ["build_output"]
-      
+
   #     configuration = {
   #       ApplicationName = aws_elastic_beanstalk_application.auther-elastic-beanstalk-app.name
   #       EnvironmentName = aws_elastic_beanstalk_environment.auther-elastic-beanstalk-env.name

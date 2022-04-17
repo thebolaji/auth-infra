@@ -18,15 +18,27 @@ resource "aws_codebuild_project" "authr_codebuild" {
       name  = "REPOSITORY_URI"
       value = aws_ecr_repository.net.repository_url
     }
-    
+
     environment_variable {
       name  = "TASK_DEFINITION"
       value = aws_ecs_task_definition.net_task_def.arn
     }
 
     environment_variable {
-      name  = "CONTAINER_NAME"
+      name  = "$IMAGE_TAG "
       value = local.name
+    }
+    environment_variable {
+      name  = "$CONTAINER_NAME"
+      value = local.name
+    }
+    environment_variable {
+      name  = "AWS_ACCOUNT_ID"
+      value = var.aws_account_id
+    }
+    environment_variable {
+      name  = "AWS_DEFAULT_REGION"
+      value = var.auth_region
     }
   }
 
